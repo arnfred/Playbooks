@@ -1,0 +1,32 @@
+---
+- hosts: all
+  sudo: yes
+  vars:
+      mesos_version: 0.19.0
+  remote_user: arnfred
+  tasks:
+    - name: Install dependencies
+      apt: name={{item}} state=latest update_cache=yes cache_valid_time=571200 # One week
+      with_items:
+        - openjdk-7-jdk
+        - python-dev
+        - libcurl4-nss-dev
+        - libsasl2-dev
+        - maven
+- hosts: all
+  vars:
+      mesos_version: 0.19.0
+      mesos_dir: "mesos-{{mesos_version}}"
+      mesos_path: /home/spark/mesos
+  remote_user: spark
+  tasks:
+    - name: Download and untar Mesos
+      unarchive: "src=files/{{mesos_dir}}.tar.gz dest=/home/spark/ creates={{mesos_path}}"
+    - command: "mv /home/spark/{{mesos_dir}} {{mesos_path}} removes=/home/spark/{{mesos_dir}} creates={{mesos_path}}"
+    - name: Move files and build Mesos
+      command: "{{item.task}} creates={{item.creates}} chdir={{item.chdir}}"
+      with_items:
+        - { task: "mkdir {{mesos_path}}/build", chdir: "", creates: "{{mesos_path}}/build" }
+        - { task: "../configure", chdir: "{{mesos_path}}/build", creates: "{{mesos_path}}/build/Makefile" }
+        - { task: "make", chdir: "{{mesos_path}}/build", creates: "{{mesos_path}}/build/src/mesos-master" }
+        - { task: "mkdir {{mesos_path}}/work", chdir: "", creates: "{{mesos_path}}/work" }
